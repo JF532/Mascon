@@ -1,11 +1,16 @@
 rules_version = '2';
+
 service cloud.firestore {
+
   match /databases/{database}/documents {
 
-    // Atividades compartilhadas — somente autenticados, vínculo UID obrigatório
+    // Atividades compartilhadas — somente usuários autenticados
     match /atividades/{id} {
+
+      // Somente usuários autenticados podem visualizar
       allow read: if request.auth != null;
 
+      // Criar atividade
       allow create: if request.auth != null
         && request.resource.data.criadaPor == request.auth.uid
         && request.resource.data.titulo is string
@@ -15,18 +20,38 @@ service cloud.firestore {
         && request.resource.data.concluidaPorNome == null
         && request.resource.data.concluidaEm == null;
 
-      // Update — reabertura travada, concluidaPor/PorNome/Em imutáveis após concluída,
-      // e transição false->true exige UID autenticado (não atribuível a outro)
+      // Atualizar atividade
       allow update: if request.auth != null
-        // 1) Nunca reabrir tarefa já concluída
-        && !(resource.data.concluida == true && request.resource.data.concluida == false)
-        // 2) Nunca alterar quem concluiu ou quando após concluída
-        && !(resource.data.concluida == true && request.resource.data.concluidaPor != resource.data.concluidaPor)
-        && !(resource.data.concluida == true && request.resource.data.concluidaPorNome != resource.data.concluidaPorNome)
-        && !(resource.data.concluida == true && request.resource.data.concluidaEm != resource.data.concluidaEm)
-        // 2b) criadaPor imutável
+
+        // criador original não pode ser alterado
         && request.resource.data.criadaPor == resource.data.criadaPor
-        // 3) Se concluir agora (false->true), exige UID autenticado e concluidaEm
+
+        // nunca reabrir uma atividade já concluída
+        && !(resource.data.concluida == true
+          && request.resource.data.concluida == false)
+
+        // se já estava concluída, os dados da conclusão são imutáveis
+        && !(resource.data.concluida == true
+          && request.resource.data.concluidaPor != resource.data.concluidaPor)
+
+        && !(resource.data.concluida == true
+          && request.resource.data.concluidaPorNome != resource.data.concluidaPorNome)
+
+        && !(resource.data.concluida == true
+          && request.resource.data.concluidaEm != resource.data.concluidaEm)
+
+        // enquanto estiver pendente, os dados de conclusão devem permanecer vazios
+        && (
+          request.resource.data.concluida == true
+          || (
+            request.resource.data.concluida == false
+            && request.resource.data.concluidaPor == null
+            && request.resource.data.concluidaPorNome == null
+            && request.resource.data.concluidaEm == null
+          )
+        )
+
+        // ao concluir, o UID deve ser exatamente o da conta autenticada
         && (
           resource.data.concluida == true
           || request.resource.data.concluida == false
@@ -39,10 +64,11 @@ service cloud.firestore {
           )
         );
 
+      // Usuários autenticados podem excluir atividades
       allow delete: if request.auth != null;
     }
 
-    // Bloqueia qualquer outra coleção por padrão
+    // Bloqueia qualquer outra coleção/documento
     match /{document=**} {
       allow read, write: if false;
     }
