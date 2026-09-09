@@ -2,13 +2,12 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Regras fortalecidas — exigem autenticação Firebase Authentication
-    // Usuários: afonso@mascon.local, marcondes@mascon.local (via signInWithEmailAndPassword)
-
+    // Atividades compartilhadas — somente autenticados, vínculo UID obrigatório
     match /atividades/{id} {
       allow read: if request.auth != null;
 
       allow create: if request.auth != null
+        && request.resource.data.criadaPor == request.auth.uid
         && request.resource.data.titulo is string
         && request.resource.data.titulo.size() >= 3
         && request.resource.data.concluida == false
@@ -16,7 +15,8 @@ service cloud.firestore {
         && request.resource.data.concluidaPorNome == null
         && request.resource.data.concluidaEm == null;
 
-      // Update — impede reabrir concluída, troca de concluidaPor/concluidaEm e garante conclusão única
+      // Update — reabertura travada, concluidaPor/PorNome/Em imutáveis após concluída,
+      // e transição false->true exige UID autenticado (não atribuível a outro)
       allow update: if request.auth != null
         // 1) Nunca reabrir tarefa já concluída
         && !(resource.data.concluida == true && request.resource.data.concluida == false)
@@ -24,13 +24,16 @@ service cloud.firestore {
         && !(resource.data.concluida == true && request.resource.data.concluidaPor != resource.data.concluidaPor)
         && !(resource.data.concluida == true && request.resource.data.concluidaPorNome != resource.data.concluidaPorNome)
         && !(resource.data.concluida == true && request.resource.data.concluidaEm != resource.data.concluidaEm)
-        // 3) Se concluir agora (false->true), exige concluidaEm e concluidaPor preenchidos
+        // 2b) criadaPor imutável
+        && request.resource.data.criadaPor == resource.data.criadaPor
+        // 3) Se concluir agora (false->true), exige UID autenticado e concluidaEm
         && (
           resource.data.concluida == true
           || request.resource.data.concluida == false
           || (
             request.resource.data.concluida == true
             && request.resource.data.concluidaPor is string
+            && request.resource.data.concluidaPor == request.auth.uid
             && request.resource.data.concluidaPorNome is string
             && request.resource.data.concluidaEm != null
           )
@@ -39,7 +42,7 @@ service cloud.firestore {
       allow delete: if request.auth != null;
     }
 
-    // Bloqueia qualquer outra coleção por padrão (defesa em profundidade)
+    // Bloqueia qualquer outra coleção por padrão
     match /{document=**} {
       allow read, write: if false;
     }

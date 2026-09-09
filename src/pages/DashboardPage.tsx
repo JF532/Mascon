@@ -40,7 +40,7 @@ export function DashboardPage() {
 
   async function handleCreate(input: { titulo: string; descricao: string; prazo: Date }) {
     if (!usuario) throw new Error("Usuário não autenticado");
-    await criarAtividade(input, usuario);
+    await criarAtividade(input);
     showToast("Atividade criada com sucesso.");
   }
 
@@ -68,7 +68,7 @@ export function DashboardPage() {
     if (!usuario) return;
     setConcluindoId(id);
     try {
-      await concluirAtividade(id, usuario);
+      await concluirAtividade(id);
       showToast("Tarefa concluída!");
     } catch (e) {
       if (e instanceof ConcluidaError) {

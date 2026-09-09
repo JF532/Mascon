@@ -14,12 +14,12 @@ import {
 } from "firebase/firestore";
 import { assertDb, assertAuth } from "./config";
 import type { Atividade, AtividadeInput } from "../types/atividade";
+import { emailParaNome } from "../types/usuario";
 
-export type UsuarioAtividade = { uid: string; nome: string } | { id: string; nome: string };
-
-function resolveUsuario(u: UsuarioAtividade): { uid: string; nome: string } {
-  const uid = (u as { uid: string }).uid ?? (u as { id: string }).id;
-  return { uid, nome: u.nome };
+function getAuthUidNome(): { uid: string; nome: string } {
+  const user = assertAuth().currentUser;
+  if (!user) throw new Error("Usuário não autenticado. Faça login novamente.");
+  return { uid: user.uid, nome: emailParaNome(user.email) };
 }
 
 const COLLECTION = "atividades";
@@ -67,15 +67,11 @@ export function subscribeAtividades(
   );
 }
 
-export async function criarAtividade(
-  input: AtividadeInput,
-  usuario: UsuarioAtividade
-): Promise<string> {
+export async function criarAtividade(input: AtividadeInput): Promise<string> {
   const db = assertDb();
-  assertAuth().currentUser; // garante auth inicializado
+  const { uid, nome } = getAuthUidNome();
   if (!input.titulo.trim()) throw new Error("Título é obrigatório.");
   if (input.titulo.trim().length < 3) throw new Error("Título deve ter ao menos 3 caracteres.");
-  const { uid, nome } = resolveUsuario(usuario);
   const ref = await addDoc(collection(db, COLLECTION), {
     titulo: input.titulo.trim(),
     descricao: input.descricao.trim(),
@@ -98,7 +94,7 @@ export async function editarAtividade(
   const db = assertDb();
   if (!input.titulo.trim()) throw new Error("Título é obrigatório.");
   const ref = doc(db, COLLECTION, id);
-  // Preserva concluida/concluidaPor/concluidaEm — não sobrescreve
+  // Preserva concluida/concluidaPor/concluidaEm — não sobrescreve (Rules impedem alteração)
   await updateDoc(ref, {
     titulo: input.titulo.trim(),
     descricao: input.descricao.trim(),
@@ -112,13 +108,10 @@ export async function excluirAtividade(id: string): Promise<void> {
   await deleteDoc(ref);
 }
 
-/** Conclusão atômica — transaction garante apenas UM consegue */
-export async function concluirAtividade(
-  atividadeId: string,
-  usuario: UsuarioAtividade
-): Promise<void> {
+/** Conclusão atômica — UID vinculado ao auth.currentUser.uid, nunca param */
+export async function concluirAtividade(atividadeId: string): Promise<void> {
   const db = assertDb();
-  const { uid, nome } = resolveUsuario(usuario);
+  const { uid, nome } = getAuthUidNome();
   const ref = doc(db, COLLECTION, atividadeId);
   await runTransaction(db, async (tx) => {
     const snap = await tx.get(ref);
