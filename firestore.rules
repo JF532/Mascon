@@ -2,25 +2,9 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ============================================================
-    // V1 — MODO MOCKADO (atual) — INSEGURO, apenas para desenvolvimento
-    // Login é mockado (localStorage), sem Firebase Auth.
-    // Qualquer pessoa com a apiKey pode ler/escrever.
-    // Use apenas em ambiente interno controlado.
-    // Para produção, migre para V2 (Firebase Auth) abaixo.
-    // ============================================================
-    match /atividades/{id} {
-      allow read, create, update, delete: if true;
-    }
+    // Regras fortalecidas — exigem autenticação Firebase Authentication
+    // Usuários: afonso@mascon.local, marcondes@mascon.local (via signInWithEmailAndPassword)
 
-    // ------------------------------------------------------------
-    // V2 — MODO SEGURO (recomendado para produção)
-    // Descomente e comente a V1 quando migrar para Firebase Auth.
-    // Requer: Firebase Authentication (Anonymous ou Email/Senha).
-    // O app deve fazer signInAnonymously() ou signInWithEmailAndPassword()
-    // e gravar criadaPor = request.auth.uid.
-    // ------------------------------------------------------------
-    /*
     match /atividades/{id} {
       allow read: if request.auth != null;
 
@@ -29,24 +13,35 @@ service cloud.firestore {
         && request.resource.data.titulo.size() >= 3
         && request.resource.data.concluida == false
         && request.resource.data.concluidaPor == null
+        && request.resource.data.concluidaPorNome == null
         && request.resource.data.concluidaEm == null;
 
-      // Update geral (editar título/descricao/prazo) — preserva conclusão
-      // Concluir só pode ser feito via transaction que checa concluida==false
+      // Update — impede reabrir concluída, troca de concluidaPor/concluidaEm e garante conclusão única
       allow update: if request.auth != null
-        // Impede reabrir tarefa concluída
+        // 1) Nunca reabrir tarefa já concluída
         && !(resource.data.concluida == true && request.resource.data.concluida == false)
-        // Impede sobrescrever quem concluiu
+        // 2) Nunca alterar quem concluiu ou quando após concluída
         && !(resource.data.concluida == true && request.resource.data.concluidaPor != resource.data.concluidaPor)
         && !(resource.data.concluida == true && request.resource.data.concluidaPorNome != resource.data.concluidaPorNome)
-        // Se estiver concluindo agora, exige concluidaEm
-        && (resource.data.concluida == true
-            || request.resource.data.concluida == false
-            || (request.resource.data.concluida == true
-                && request.resource.data.concluidaPor == request.auth.uid));
+        && !(resource.data.concluida == true && request.resource.data.concluidaEm != resource.data.concluidaEm)
+        // 3) Se concluir agora (false->true), exige concluidaEm e concluidaPor preenchidos
+        && (
+          resource.data.concluida == true
+          || request.resource.data.concluida == false
+          || (
+            request.resource.data.concluida == true
+            && request.resource.data.concluidaPor is string
+            && request.resource.data.concluidaPorNome is string
+            && request.resource.data.concluidaEm != null
+          )
+        );
 
       allow delete: if request.auth != null;
     }
-    */
+
+    // Bloqueia qualquer outra coleção por padrão (defesa em profundidade)
+    match /{document=**} {
+      allow read, write: if false;
+    }
   }
 }

@@ -12,9 +12,15 @@ import {
   runTransaction,
   type Unsubscribe,
 } from "firebase/firestore";
-import { assertDb } from "./config";
+import { assertDb, assertAuth } from "./config";
 import type { Atividade, AtividadeInput } from "../types/atividade";
-import type { UsuarioMock } from "../types/usuario";
+
+export type UsuarioAtividade = { uid: string; nome: string } | { id: string; nome: string };
+
+function resolveUsuario(u: UsuarioAtividade): { uid: string; nome: string } {
+  const uid = (u as { uid: string }).uid ?? (u as { id: string }).id;
+  return { uid, nome: u.nome };
+}
 
 const COLLECTION = "atividades";
 
@@ -63,16 +69,18 @@ export function subscribeAtividades(
 
 export async function criarAtividade(
   input: AtividadeInput,
-  usuario: UsuarioMock
+  usuario: UsuarioAtividade
 ): Promise<string> {
   const db = assertDb();
+  assertAuth().currentUser; // garante auth inicializado
   if (!input.titulo.trim()) throw new Error("Título é obrigatório.");
   if (input.titulo.trim().length < 3) throw new Error("Título deve ter ao menos 3 caracteres.");
+  const { uid, nome } = resolveUsuario(usuario);
   const ref = await addDoc(collection(db, COLLECTION), {
     titulo: input.titulo.trim(),
     descricao: input.descricao.trim(),
-    criadaPor: usuario.id,
-    criadaPorNome: usuario.nome,
+    criadaPor: uid,
+    criadaPorNome: nome,
     criadaEm: serverTimestamp(),
     prazo: Timestamp.fromDate(input.prazo),
     concluida: false,
@@ -107,9 +115,10 @@ export async function excluirAtividade(id: string): Promise<void> {
 /** Conclusão atômica — transaction garante apenas UM consegue */
 export async function concluirAtividade(
   atividadeId: string,
-  usuario: UsuarioMock
+  usuario: UsuarioAtividade
 ): Promise<void> {
   const db = assertDb();
+  const { uid, nome } = resolveUsuario(usuario);
   const ref = doc(db, COLLECTION, atividadeId);
   await runTransaction(db, async (tx) => {
     const snap = await tx.get(ref);
@@ -118,13 +127,13 @@ export async function concluirAtividade(
     }
     const data = snap.data() as Record<string, unknown>;
     if (data.concluida === true) {
-      const nome = (data.concluidaPorNome as string) ?? "outro usuário";
-      throw new ConcluidaError(nome);
+      const n = (data.concluidaPorNome as string) ?? "outro usuário";
+      throw new ConcluidaError(n);
     }
     tx.update(ref, {
       concluida: true,
-      concluidaPor: usuario.id,
-      concluidaPorNome: usuario.nome,
+      concluidaPor: uid,
+      concluidaPorNome: nome,
       concluidaEm: serverTimestamp(),
     });
   });

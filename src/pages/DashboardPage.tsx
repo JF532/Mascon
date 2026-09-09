@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useAuthMock } from "../hooks/useAuthMock";
+import { useAuth } from "../hooks/useAuth";
 import { useAtividades } from "../hooks/useAtividades";
 import { Header } from "../components/Header";
 import { DashboardStats } from "../components/DashboardStats";
@@ -12,7 +12,7 @@ import { filtrarAtividades, ordenarAtividades } from "../utils/status";
 import { criarAtividade, editarAtividade, excluirAtividade, concluirAtividade, ConcluidaError } from "../firebase/atividades";
 
 export function DashboardPage() {
-  const { usuario } = useAuthMock();
+  const { usuario } = useAuth();
   const { atividades, loading, erro } = useAtividades();
 
   const [filtro, setFiltro] = useState<FiltroAtividade>("todas");

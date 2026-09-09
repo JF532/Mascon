@@ -1,7 +1,7 @@
-import { useAuthMock } from "../hooks/useAuthMock";
+import { useAuth } from "../hooks/useAuth";
 
 export function Header() {
-  const { usuario, logout } = useAuthMock();
+  const { usuario, logout } = useAuth();
 
   return (
     <header className="topbar">
@@ -16,8 +16,7 @@ export function Header() {
 
         <div className="topbar-actions">
           <span className="hello">
-            Olá, <strong>{usuario?.nome}</strong> 👋
-            {usuario?.papel === "admin" && <span className="badge-admin">admin</span>}
+            Olá, <strong>{usuario?.nome ?? "Usuário"}</strong> 👋
           </span>
           <button className="btn btn-ghost" onClick={logout}>
             Sair

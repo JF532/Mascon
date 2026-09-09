@@ -1,68 +1,50 @@
-import { useEffect, useState } from "react";
 import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthMockContext } from "./hooks/useAuthMock";
-import type { UsuarioMock } from "./types/usuario";
+import { AuthContext, useAuth, useAuthProvider } from "./hooks/useAuth";
 import { LoginPage } from "./pages/LoginPage";
 import { DashboardPage } from "./pages/DashboardPage";
 
-const STORAGE_KEY = "mascon_usuario";
-
-function usePersistedUser() {
-  const [usuario, setUsuario] = useState<UsuarioMock | null>(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? (JSON.parse(raw) as UsuarioMock) : null;
-    } catch {
-      return null;
-    }
-  });
-
-  const login = (u: UsuarioMock) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(u));
-    setUsuario(u);
-  };
-
-  const logout = () => {
-    localStorage.removeItem(STORAGE_KEY);
-    setUsuario(null);
-  };
-
-  // Sync across tabs
-  useEffect(() => {
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEY) {
-        setUsuario(e.newValue ? (JSON.parse(e.newValue) as UsuarioMock) : null);
-      }
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, []);
-
-  return { usuario, login, logout };
-}
-
 function Protected() {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  const hasUser = Boolean(raw);
-  if (!hasUser) return <Navigate to="/login" replace />;
+  const { usuario, loading } = useAuth();
+  if (loading) {
+    return (
+      <div className="login-page">
+        <div className="login-card" style={{ textAlign: "center" }}>
+          <p style={{ color: "var(--text-muted)" }}>Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+  if (!usuario) return <Navigate to="/login" replace />;
   return <DashboardPage />;
 }
 
+function LoginRoute() {
+  const { usuario, loading } = useAuth();
+  if (loading) {
+    return (
+      <div className="login-page">
+        <div className="login-card" style={{ textAlign: "center" }}>
+          <p style={{ color: "var(--text-muted)" }}>Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+  if (usuario) return <Navigate to="/" replace />;
+  return <LoginPage />;
+}
+
 export default function App() {
-  const auth = usePersistedUser();
+  const auth = useAuthProvider();
 
   return (
-    <AuthMockContext.Provider value={auth}>
+    <AuthContext.Provider value={auth}>
       <HashRouter>
         <Routes>
-          <Route
-            path="/login"
-            element={auth.usuario ? <Navigate to="/" replace /> : <LoginPage />}
-          />
+          <Route path="/login" element={<LoginRoute />} />
           <Route path="/" element={<Protected />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </HashRouter>
-    </AuthMockContext.Provider>
+    </AuthContext.Provider>
   );
 }

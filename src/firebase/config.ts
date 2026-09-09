@@ -1,4 +1,5 @@
 import { initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 // Variáveis vindas do .env — nunca commitar valores reais
@@ -22,6 +23,7 @@ function isConfigValid(): boolean {
 export const app = isConfigValid() ? initializeApp(firebaseConfig) : null;
 
 export const db = app ? getFirestore(app) : null;
+export const auth = app ? getAuth(app) : null;
 
 export function assertDb() {
   if (!db) {
@@ -30,4 +32,13 @@ export function assertDb() {
     );
   }
   return db;
+}
+
+export function assertAuth() {
+  if (!auth) {
+    throw new Error(
+      "Firebase Auth não configurado. Verifique o .env e se o projeto inicializou corretamente."
+    );
+  }
+  return auth;
 }
