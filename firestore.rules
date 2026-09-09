@@ -1,0 +1,52 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ============================================================
+    // V1 — MODO MOCKADO (atual) — INSEGURO, apenas para desenvolvimento
+    // Login é mockado (localStorage), sem Firebase Auth.
+    // Qualquer pessoa com a apiKey pode ler/escrever.
+    // Use apenas em ambiente interno controlado.
+    // Para produção, migre para V2 (Firebase Auth) abaixo.
+    // ============================================================
+    match /atividades/{id} {
+      allow read, create, update, delete: if true;
+    }
+
+    // ------------------------------------------------------------
+    // V2 — MODO SEGURO (recomendado para produção)
+    // Descomente e comente a V1 quando migrar para Firebase Auth.
+    // Requer: Firebase Authentication (Anonymous ou Email/Senha).
+    // O app deve fazer signInAnonymously() ou signInWithEmailAndPassword()
+    // e gravar criadaPor = request.auth.uid.
+    // ------------------------------------------------------------
+    /*
+    match /atividades/{id} {
+      allow read: if request.auth != null;
+
+      allow create: if request.auth != null
+        && request.resource.data.titulo is string
+        && request.resource.data.titulo.size() >= 3
+        && request.resource.data.concluida == false
+        && request.resource.data.concluidaPor == null
+        && request.resource.data.concluidaEm == null;
+
+      // Update geral (editar título/descricao/prazo) — preserva conclusão
+      // Concluir só pode ser feito via transaction que checa concluida==false
+      allow update: if request.auth != null
+        // Impede reabrir tarefa concluída
+        && !(resource.data.concluida == true && request.resource.data.concluida == false)
+        // Impede sobrescrever quem concluiu
+        && !(resource.data.concluida == true && request.resource.data.concluidaPor != resource.data.concluidaPor)
+        && !(resource.data.concluida == true && request.resource.data.concluidaPorNome != resource.data.concluidaPorNome)
+        // Se estiver concluindo agora, exige concluidaEm
+        && (resource.data.concluida == true
+            || request.resource.data.concluida == false
+            || (request.resource.data.concluida == true
+                && request.resource.data.concluidaPor == request.auth.uid));
+
+      allow delete: if request.auth != null;
+    }
+    */
+  }
+}
