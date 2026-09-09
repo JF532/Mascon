@@ -31,16 +31,20 @@ export class ConcluidaError extends Error {
   }
 }
 
-/** Converte doc Firestore -> Atividade tipada */
-function mapDocToAtividade(id: string, data: Record<string, unknown>): Atividade {
+/** Converte doc Firestore -> Atividade tipada (filtra pending serverTimestamp) */
+function mapDocToAtividade(id: string, data: Record<string, unknown>): Atividade | null {
+  const criadaEm = data.criadaEm as Timestamp | null;
+  if (!criadaEm) return null;
+  const prazo = data.prazo as Timestamp | null;
+  if (!prazo) return null;
   return {
     id,
     titulo: data.titulo as string,
     descricao: (data.descricao as string) ?? "",
     criadaPor: data.criadaPor as string,
     criadaPorNome: data.criadaPorNome as string,
-    criadaEm: data.criadaEm as Timestamp,
-    prazo: data.prazo as Timestamp,
+    criadaEm: criadaEm,
+    prazo: prazo,
     concluida: Boolean(data.concluida),
     concluidaPor: (data.concluidaPor as string | null) ?? null,
     concluidaPorNome: (data.concluidaPorNome as string | null) ?? null,
@@ -58,9 +62,9 @@ export function subscribeAtividades(
   return onSnapshot(
     q,
     (snapshot) => {
-      const list: Atividade[] = snapshot.docs.map((d) =>
-        mapDocToAtividade(d.id, d.data())
-      );
+      const list: Atividade[] = snapshot.docs
+        .map((d) => mapDocToAtividade(d.id, d.data()))
+        .filter((a): a is Atividade => a !== null);
       onData(list);
     },
     (err) => onError(err as Error)

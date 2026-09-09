@@ -31,13 +31,13 @@ export function ordenarAtividades(
   const copy = [...atividades];
   switch (ordenacao) {
     case "prazo-asc":
-      return copy.sort((a, b) => a.prazo.toMillis() - b.prazo.toMillis());
+      return copy.sort((a, b) => (a.prazo?.toMillis() ?? 0) - (b.prazo?.toMillis() ?? 0));
     case "prazo-desc":
-      return copy.sort((a, b) => b.prazo.toMillis() - a.prazo.toMillis());
+      return copy.sort((a, b) => (b.prazo?.toMillis() ?? 0) - (a.prazo?.toMillis() ?? 0));
     case "criadaEm-asc":
-      return copy.sort((a, b) => a.criadaEm.toMillis() - b.criadaEm.toMillis());
+      return copy.sort((a, b) => (a.criadaEm?.toMillis() ?? 0) - (b.criadaEm?.toMillis() ?? 0));
     case "criadaEm-desc":
-      return copy.sort((a, b) => b.criadaEm.toMillis() - a.criadaEm.toMillis());
+      return copy.sort((a, b) => (b.criadaEm?.toMillis() ?? 0) - (a.criadaEm?.toMillis() ?? 0));
     default:
       return copy;
   }

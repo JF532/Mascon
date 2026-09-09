@@ -11,7 +11,8 @@ interface Props {
 
 export function AtividadeCard({ atividade, onConcluir, onEditar, onExcluir, concluindoId }: Props) {
   const status = getStatusLabel(atividade.concluida, atividade.prazo);
-  const prazoDate = atividade.prazo.toDate();
+  const prazoDate = atividade.prazo ? atividade.prazo.toDate() : null;
+  const criadaEmDate = (atividade.criadaEm as unknown as { toDate?: () => Date } | null)?.toDate?.() ?? null;
   const concluidaEmDate = atividade.concluidaEm?.toDate() ?? null;
 
   return (
@@ -28,7 +29,7 @@ export function AtividadeCard({ atividade, onConcluir, onEditar, onExcluir, conc
       <div className="card-meta">
         <span>📅 Prazo: {formatDateBR(prazoDate)}</span>
         <span>👤 Criada por: {atividade.criadaPorNome}</span>
-        <span>🕒 Criada em: {formatDateTimeBR(atividade.criadaEm.toDate())}</span>
+        <span>🕒 Criada em: {formatDateTimeBR(criadaEmDate)}</span>
       </div>
 
       {atividade.concluida && (

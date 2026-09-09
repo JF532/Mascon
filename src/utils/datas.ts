@@ -41,8 +41,9 @@ export function parseInputDate(value: string): Date {
   return new Date(y, m - 1, d, 12, 0, 0);
 }
 
-export function isAtrasada(prazo: Timestamp, concluida: boolean): boolean {
+export function isAtrasada(prazo: Timestamp | null | undefined, concluida: boolean): boolean {
   if (concluida) return false;
+  if (!prazo) return false;
   const prazoDate = prazo.toDate();
   const hojeInicio = new Date();
   hojeInicio.setHours(0, 0, 0, 0);
@@ -51,7 +52,7 @@ export function isAtrasada(prazo: Timestamp, concluida: boolean): boolean {
 
 export function getStatusLabel(
   concluida: boolean,
-  prazo: Timestamp
+  prazo: Timestamp | null | undefined
 ): { label: string; tone: "pendente" | "atrasada" | "concluida" } {
   if (concluida) return { label: "Concluída", tone: "concluida" };
   if (isAtrasada(prazo, concluida)) return { label: "Atrasada", tone: "atrasada" };
